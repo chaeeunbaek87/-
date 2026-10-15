@@ -1577,6 +1577,45 @@ video.req-thumb{object-fit:cover}
 #pg-fin .fin-det.fin-det-fx .fx-box::before{content:'';position:absolute;top:0;bottom:0;left:10px;right:10px;background:#fff;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line-soft);pointer-events:none}
 #pg-fin .fin-det.fin-det-fx .fx-box>*{position:relative}
 #pg-fin .fin-det.fin-det-fx .fx-foot{margin:6px 24px 0 26px}
+
+/* v32: 관리자 부킹 게시판 — 컴팩트 목록 · 광고주 새 활동 표시 */
+#reqList.bh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-items:start}
+.bh-notice{grid-column:1/-1;display:flex;align-items:center;gap:8px;background:#FFF6F4;border:1px solid #F7DAD4;border-radius:12px;padding:10px 12px 10px 14px;font-size:13px;color:var(--ink-2)}
+.bh-notice b{color:#D0453A;font-weight:800}
+.bh-notice .bh-sub{color:var(--ink-3);font-size:12px}
+.bh-notice .bh-dot{width:7px;height:7px;border-radius:50%;background:#F04438;box-shadow:0 0 0 3px rgba(240,68,56,.16);flex-shrink:0}
+.bh-notice button{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.bh-notice button:hover{border-color:var(--hd-green);color:var(--hd-deep)}
+.bh-tile{position:relative;background:#fff;border:1px solid var(--line-soft);border-radius:14px;padding:13px 14px 12px;cursor:pointer;min-width:0;transition:border-color .15s,box-shadow .15s,transform .15s;outline:none}
+.bh-tile:hover,.bh-tile:focus-visible{border-color:#CFE3D8;box-shadow:0 6px 18px rgba(20,40,30,.07);transform:translateY(-1px)}
+.bh-tile.is-new{border-color:#F4BDB4;box-shadow:0 0 0 3px rgba(240,68,56,.07)}
+.bh-t1{display:flex;align-items:center;gap:5px;min-width:0}
+.bh-st{font-size:11px;font-weight:800;line-height:1;padding:5px 8px;border-radius:7px;background:var(--hd-soft);color:var(--hd-deep);white-space:nowrap}
+.bh-st.live{background:var(--hd-green);color:#fff}
+.bh-st.warn{background:#FBEAE7;color:#C2402A}
+.bh-st.done{background:#EEF1EE;color:var(--ink-3)}
+.bh-new{font-size:10px;font-weight:900;line-height:1;color:#fff;background:#F04438;border-radius:6px;padding:4px 6px;letter-spacing:.03em}
+.bh-date{margin-left:auto;font-size:11.5px;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.bh-adv{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-top:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bh-nm{font-size:14px;font-weight:800;letter-spacing:-.3px;color:var(--ink);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bh-bar{display:flex;gap:3px;margin-top:11px}
+.bh-bar i{flex:1;height:4px;border-radius:2px;background:#E9EDEA}
+.bh-bar i.on{background:var(--hd-green)}
+.bh-bar i.cur{background:#A8D5C2}
+.bh-bar i.rej{background:#E2735F}
+.bh-t2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;font-size:12px;color:var(--ink-3)}
+.bh-t2 b{font-size:12.5px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bh-t2 span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bh-act{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed #F3D5CF;font-size:12px;font-weight:800;color:#C2402A}
+.bh-act i{width:6px;height:6px;border-radius:50%;background:#F04438;flex-shrink:0}
+.bh-act span{margin-left:auto;font-weight:600;color:var(--ink-3)}
+.bh-open{grid-column:1/-1;position:relative}
+.bh-open>.bk-card{margin-bottom:0;border-color:#CFE3D8;box-shadow:0 8px 24px rgba(20,40,30,.08)}
+.bh-close{position:absolute;top:16px;right:18px;z-index:2;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.bh-close:hover{border-color:var(--hd-green);color:var(--hd-deep)}
+.bh-open>.bk-card .bk-top>div[style*="flex:1"]{padding-right:70px}
+.view-tab[data-pg="board"]{position:relative}
+.bh-navdot{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:#F04438;color:#fff;font-size:10px;font-weight:800;font-style:normal;line-height:16px;text-align:center;box-shadow:0 0 0 2px #fff}
 </style>
 <script type="module">
 /* ══════════════════════════════════════════════════════════════
@@ -2592,6 +2631,7 @@ function openCampOnBoard(id){
     return;
   }
   boardFilter=(CAMPAIGNS.find(x=>x.id===id)||{}).hidden?'숨긴 내역':'전체';
+  if(me&&me.role==='admin') bhOpen.add(id);
   go('board');
   setTimeout(()=>{
     const card=document.querySelector(`.bk-card[data-cid="${CSS.escape(id)}"]`); if(!card) return;
@@ -3193,7 +3233,7 @@ $('saveSlotBtn').addEventListener('click', async ()=>{
     }
     /* 지금 폼에 있는 값을 그대로 스냅샷으로 커밋합니다 (이후 입력은 다시 저장해야 반영) */
     const snap = {...d, imgs:(d.imgs||[]).slice()}; delete snap._ld; d._ld=1;
-    touch(c);
+    touch(c,'소재 확정');
     c.items.filter(i=>i.p===curSlot).forEach(i=>{ i.mat=true; i.creative=snap; delete i.draftCr; });
     const allMat=c.items.every(i=>i.mat||i.p==='event');
     if(allMat&&stIdx(c)>=1&&stIdx(c)<=3){ c.status='소재 등록'; }
@@ -3240,7 +3280,7 @@ $('matSaveBtn').addEventListener('click', async ()=>{
   saveDraft();
   const d=draftOf(curSlot), slot=curSlot, btn=$('matSaveBtn');
   const snap={...d, imgs:(d.imgs||[]).slice()}; delete snap._ld; d._ld=1;
-  touch(c);
+  touch(c,'소재 임시 저장');
   c.items.filter(i=>i.p===slot).forEach(i=>{ i.draftCr=snap; });
   btn.disabled=true;
   try{ await uploadDraftImages(snap, `creatives/${c.id}/${slot}`); } finally { btn.disabled=false; }
@@ -3442,7 +3482,7 @@ function renderCart(){
     const items=c2.sel.map(r=>({...r.it, tg:r.tg||undefined,
       sale:Math.round(r.base*f*(r.tg?1.2:1))}));
     for(const it of items){ if(it.creative) await uploadDraftImages(it.creative, `creatives/${campId}/${it.p}`); }
-    CAMPAIGNS.push({id:campId, adv:advN, agency:me.agency||null, mgr:me.id, name, status:'부킹 요청', reqAt:Date.now(), upd:Date.now(), items});
+    CAMPAIGNS.push({id:campId, adv:advN, agency:me.agency||null, mgr:me.id, name, status:'부킹 요청', reqAt:Date.now(), upd:Date.now(), advAt:Date.now(), advAct:'부킹 요청', items});
     cartAdvV='';
     markDirty(campId);
     c2.sel.forEach(r=>delete cart[r.k]);
@@ -3888,7 +3928,7 @@ $('taxSaveBtn').addEventListener('click',()=>{
   const upd=!!c.tax;
   c.tax={no,corp,ceo,email,reqDate:$('txDate').value};
   if(stIdx(c)===7) c.status='세금계산서 발행';
-  touch(c);
+  touch(c,'세금계산서 정보 등록');
   $('taxModal').classList.remove('show');
   toast(upd?'세금계산서 발행 정보를 수정했어요':'세금계산서 발행 정보가 등록됐어요 — 요청일 기준 일괄 발행됩니다');
   if($('pg-board').classList.contains('on')) RENDER.board();
@@ -5285,6 +5325,69 @@ function reqCard(c, admin){
     ${acts?`<div class="bk-actions">${acts}</div>`:''}
   </div>`;
 }
+/* ═══ 관리자 부킹 게시판: 컴팩트 목록 + 광고주 새 활동 표시 ═══ */
+const BH_SEEN_KEY='bhSeen_v1';
+let bhSeen=(()=>{ try{ return JSON.parse(localStorage.getItem(BH_SEEN_KEY)||'{}')||{}; }catch(e){ return {}; } })();
+const bhOpen=new Set();
+function bhSeenSave(){ try{ localStorage.setItem(BH_SEEN_KEY, JSON.stringify(bhSeen)); }catch(e){} }
+function bhNew(c){ return (c&&c.advAt&&c.advAt>(bhSeen[c.id]||0)) ? 1 : 0; }
+function bhAgo(t){
+  const m=Math.floor((Date.now()-t)/60000);
+  if(m<1) return '방금'; if(m<60) return m+'분 전';
+  const h=Math.floor(m/60); if(h<24) return h+'시간 전';
+  const d=Math.floor(h/24); return d<7 ? d+'일 전' : kdate(dstr(new Date(t)));
+}
+function bhTile(c){
+  const si=stIdx(c), isNew=bhNew(c), {dn,cu}=effOf(c);
+  const lb = c.status==='취소' ? '취소됨' : c.status==='반려' ? '반려' : dispSt(c);
+  const cls = c.status==='반려' ? 'warn' : (c.status==='취소'||si>=7) ? 'done' : lb==='광고 중' ? 'live' : '';
+  const rj=visOf(c.rejFrom??0), cuV=visOf(cu);
+  const bar=VIS_STEPS.map(i=>{
+    const k = c.status==='반려' ? (i<rj?'on':i===rj?'rej':'') : c.status==='취소' ? (i<=dn?'on':'') : (i<=dn?'on':i===cuV?'cur':'');
+    return `<i class="${k}"></i>`;
+  }).join('');
+  return `<div class="bh-tile${isNew?' is-new':''}" role="button" tabindex="0" data-bhopen="${esc(c.id)}">
+    <div class="bh-t1"><span class="bh-st ${cls}">${esc(lb)}</span>${isNew?'<span class="bh-new">NEW</span>':''}<span class="bh-date">${kdate(c.items[0].s)} ~ ${kdate(campEnd(c))}</span></div>
+    <div class="bh-adv">${esc(c.adv||'')}</div>
+    <div class="bh-nm" title="${esc(c.name||'')}">${esc(c.name||'')}</div>
+    <div class="bh-bar">${bar}</div>
+    <div class="bh-t2"><b>${fmt(campTotal(c))}</b><span>${c.agency?esc(c.agency):'직접 청약'}</span></div>
+    ${isNew?`<div class="bh-act"><i></i>${esc(c.advAct||'업데이트')}<span>${bhAgo(c.advAt)}</span></div>`:''}
+  </div>`;
+}
+function bhGrid(list){
+  const n=list.filter(bhNew).length;
+  const notice = n ? `<div class="bh-notice"><span class="bh-dot"></span>광고주 새 활동 <b>${n}건</b><span class="bh-sub">맨 앞에 표시했어요 · 카드를 열면 확인 처리돼요</span><button type="button" data-bhseenall>모두 확인</button></div>` : '';
+  return notice + list.map(c=> bhOpen.has(c.id)
+    ? `<div class="bh-open"><button type="button" class="bh-close" data-bhclose="${esc(c.id)}">접기 ▲</button>${reqCard(c,true)}</div>`
+    : bhTile(c)).join('');
+}
+function bhBind(){
+  const L=$('reqList'); bhNavDot();
+  const seen=id=>{ const c=CAMPAIGNS.find(x=>x.id===id); if(c&&c.advAt){ bhSeen[id]=Math.max(c.advAt, Date.now()); bhSeenSave(); } };
+  L.querySelectorAll('[data-bhopen]').forEach(t=>{
+    const open=()=>{ const id=t.dataset.bhopen; bhOpen.add(id); seen(id); RENDER.board(); bhNavDot();
+      setTimeout(()=>{ const card=document.querySelector(`.bk-card[data-cid="${CSS.escape(id)}"]`); if(card) card.scrollIntoView({behavior:'smooth',block:'nearest'}); },30); };
+    t.addEventListener('click',open);
+    t.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
+  });
+  L.querySelectorAll('[data-bhclose]').forEach(b=>b.addEventListener('click',()=>{ bhOpen.delete(b.dataset.bhclose); RENDER.board(); }));
+  L.querySelectorAll('[data-bhseenall]').forEach(b=>b.addEventListener('click',()=>{
+    CAMPAIGNS.forEach(c=>{ if(bhNew(c)) bhSeen[c.id]=Math.max(c.advAt, Date.now()); }); bhSeenSave(); RENDER.board(); bhNavDot();
+  }));
+}
+/* 다른 탭에 있어도 [부킹 게시판] 탭에 새 활동 개수 표시 */
+function bhNavDot(){
+  try{
+    const tab=document.querySelector('#navTabs .view-tab[data-pg="board"]'); if(!tab) return;
+    const n=(me&&me.role==='admin') ? CAMPAIGNS.filter(c=>!c.hidden&&bhNew(c)).length : 0;
+    let dot=tab.querySelector('.bh-navdot');
+    if(!n){ if(dot) dot.remove(); return; }
+    if(!dot){ dot=document.createElement('i'); dot.className='bh-navdot'; tab.appendChild(dot); }
+    if(dot.textContent!==String(n)) dot.textContent=n;
+  }catch(e){}
+}
+setInterval(bhNavDot, 2000);
 RENDER.board = () => {
   const admin = me.role==='admin';
   $('bhTitle').textContent = admin?'부킹 게시판':'부킹 / 광고 상태';
@@ -5323,19 +5426,21 @@ RENDER.board = () => {
   CAMPAIGNS.forEach(c=>{ if(c.status!=='취소'&&c.status!=='반려') syncAuto(c); });
   const src = admin?CAMPAIGNS:myCamps();
   const list=src.filter(pass).slice().sort((a,b)=>{
-    if(admin) return (b.reqAt||0)-(a.reqAt||0);   /* 요청 들어온 순(최신 위) */
+    if(admin) return (bhNew(b)-bhNew(a)) || (bhNew(a)&&bhNew(b)?(b.advAt||0)-(a.advAt||0):0) || (b.reqAt||0)-(a.reqAt||0);   /* 광고주 새 활동 → 맨 앞 · 그 외 요청 들어온 순(최신 위) */
     const run=x=>stIdx(x)>=0&&stIdx(x)<8?0:1;
     return run(a)-run(b) || (a.items[0].s<b.items[0].s?1:-1);
   });
   $('reqList').innerHTML = (list.length
-    ? list.map(c=>reqCard(c,admin)).join('')
+    ? (admin ? bhGrid(list) : list.map(c=>reqCard(c,admin)).join(''))
     : `<div class="board-empty"><div class="be-icon">🗂️</div><p>${boardFilter==='전체'?(admin?'등록된 캠페인이 없습니다':'아직 캠페인이 없어요'):'해당 상태의 캠페인이 없습니다'}</p>${admin?'':'<small><b>광고 상품</b> 탭에서 첫 부킹을 시작해 보세요</small>'}</div>`)
     + `<input type="file" id="docFileInp" multiple hidden><input type="file" id="pvFileInp" accept="image/*" multiple hidden>`;
+  $('reqList').classList.toggle('bh-grid', admin&&list.length>0);
+  if(admin) bhBind();
   /* ── 바인딩 ── */
   const setSt=(c,val)=>{
     if(val==='반려'){ c.rejFrom=Math.max(0,stIdx(c)); c.rejectNote=(window.prompt('반려 사유를 입력해 주세요','서류 보완이 필요합니다')||'서류 보완이 필요합니다'); c.status='반려'; }
     else { c.status=val; delete c.rejFrom; if(val!=='반려') delete c.rejectNote; }
-    c.uiStep=undefined; touch(c);
+    c.uiStep=undefined; touch(c, val==='취소'?'부킹 취소':val);
     toast(val==='반려'?`「${c.name}」 반려 처리됐어요`:`「${c.name}」 상태 → ${val}`);
     RENDER.board();
   };
@@ -5376,7 +5481,7 @@ RENDER.board = () => {
     }
     const d=docsOf(c);
     if(key==='etc') d.etc=list.length; else d[key]=true;
-    touch(c);
+    touch(c,'서류 업로드');
     toast(`${fl[0].name}${fl.length>1?` 외 ${fl.length-1}건`:''} 업로드 완료 ✓`);
     pendingDoc=null; RENDER.board();
   });
@@ -5498,7 +5603,7 @@ RENDER.board = () => {
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.matre); if(!c) return;
     const allMat=c.items.every(x=>x.mat||x.p==='event');
     if(!allMat){ toast('아직 등록되지 않은 구좌가 있어요 — 소재 등록 탭에서 모두 등록해 주세요'); return; }
-    c.status='소재 등록'; c.rejFrom=undefined; c.rejectNote=undefined; c.uiStep=undefined; touch(c);
+    c.status='소재 등록'; c.rejFrom=undefined; c.rejectNote=undefined; c.uiStep=undefined; touch(c,'재검수 요청');
     toast('재검수를 요청했어요 ✓ 담당자 승인을 기다려 주세요');
     RENDER.board();
   }));
@@ -5530,7 +5635,7 @@ RENDER.board = () => {
   }));
   $('reqList').querySelectorAll('[data-pvok]').forEach(b=>b.addEventListener('click',()=>{
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.pvok); if(!c) return;
-    c.pvConfirmed=true; c.pvRejectNote=undefined; c.uiStep=undefined; touch(c); syncAuto(c);
+    c.pvConfirmed=true; c.pvRejectNote=undefined; c.uiStep=undefined; touch(c,'프리뷰 확인 완료'); syncAuto(c);
     toast('미리보기 확인이 완료되었어요 ✓ 일정에 맞춰 광고가 시작됩니다');
     RENDER.board();
   }));
@@ -5538,7 +5643,7 @@ RENDER.board = () => {
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.pvrej); if(!c) return;
     const note=window.prompt('추가로 확인하고 싶은 프리뷰 화면을 알려주세요','전체 메뉴·팝업 화면 프리뷰를 추가로 보여주세요');
     if(note===null) return;
-    c.pvRejectNote=note||'프리뷰 보충이 필요합니다'; c.pvConfirmed=false; c.uiStep=undefined; touch(c);
+    c.pvRejectNote=note||'프리뷰 보충이 필요합니다'; c.pvConfirmed=false; c.uiStep=undefined; touch(c,'프리뷰 보충 요청');
     toast('프리뷰 보충 요청을 보냈어요 — 담당자가 확인 후 추가 등록합니다');
     RENDER.board();
   }));
@@ -6449,7 +6554,7 @@ function restoreLocalImgs(rc, lc){
 }
 let _syncWarnAt=0;
 const dirtyCamps=new Set();                 /* 아직 서버에 반영되지 않은 로컬 변경 캠페인 */
-function touch(c){ if(!c) return; c.upd=Date.now(); markDirty(c.id); }
+function touch(c, act){ if(!c) return; c.upd=Date.now(); try{ if(me&&me.role!=='admin'){ c.advAt=c.upd; c.advAct=act||'업데이트'; } }catch(e){} markDirty(c.id); }
 const deletedCamps=new Set();               /* 이번 세션에서 삭제한 부킹 — 스냅샷으로 되살아나지 않게 */
 const dirtySeq={};   /* 캠페인별 변경 횟수 — 저장 중에 또 바뀐 캠페인은 '수정됨' 표시를 지우지 않기 위함 */
 function markDirty(id){ if(id){ dirtyCamps.add(id); dirtySeq[id]=(dirtySeq[id]||0)+1; } }
