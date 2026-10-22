@@ -2516,7 +2516,6 @@ const dispSt = c => (c.status==='광고 예정'&&adStarted(c)&&campEnd(c)>=dstr(
 const PKGS = [
  {name:'APP PUSH 패키지', set:['popup','main','bottom','push'], price:14000000, list:16000000},
  {name:'APP DA 패키지', set:['popup','main','bottom','splash'], price:22000000, list:26000000},
- {name:'APP 풀패키지', set:['popup','main','bottom','splash','push','headline'], price:31000000, list:36000000},   /* 2026.10 이벤트 메뉴 판매 종료로 구성에서 제외 */
 ];
 let ACCOUNTS = [
  {id:'admin', pw:'1234', role:'admin', name:'미디어콘텐츠팀'},
@@ -3932,7 +3931,7 @@ function contractRows(c){
 function contractPkgName(c){
   const ids=c.items.map(i=>i.p), wk=weeksOf(c.items[0].s,campEnd(c));
   const pk=PKGS.find(k=>k.set.length===ids.length&&k.set.every(s=>ids.includes(s)))
-    || (ids.length===7&&['popup','main','bottom','splash','push','headline','event'].every(s=>ids.includes(s)) ? PKGS.find(k=>k.name==='APP 풀패키지') : null);   /* 이벤트 메뉴 포함 기존 풀패키지 계약 */
+    || (ids.length===7&&['popup','main','bottom','splash','push','headline','event'].every(s=>ids.includes(s)) ? {name:'APP 풀패키지'} : null);   /* 이벤트 메뉴 포함 기존 풀패키지 계약(판매 종료, 명칭만 보존) */
   return pk ? `${pk.name}(${wk}주)` : `현대백화점 APP ${ids.length}종`;
 }
 function buildContractXlsx(c){
