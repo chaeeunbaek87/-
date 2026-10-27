@@ -1872,7 +1872,7 @@ init();
       <div id="grpMain" style="display:none">
         <div class="field"><label>제목 1줄 <span class="req">*</span></label><div class="input-wrap"><input type="text" class="text-input cnt" id="mainT1" maxlength="20" style="padding-right:52px"><span class="char-count">0/20</span></div></div>
         <div class="field"><label>제목 2줄</label><div class="input-wrap"><input type="text" class="text-input cnt" id="mainT2" maxlength="20" style="padding-right:52px"><span class="char-count">0/20</span></div></div>
-        <p class="hint">이미지 좌상단 텍스트 영역에 노출됩니다. 공백 포함 <b>한 줄당 15자</b>까지 입력할 수 있습니다.</p>
+        <p class="hint">이미지 좌상단 텍스트 영역에 노출됩니다. 공백 포함 <b>한 줄당 20자</b>까지 입력할 수 있습니다.</p>
       </div>
       <div id="grpHeadline" style="display:none">
         <div class="field"><label>문구 1줄 <span class="req">*</span></label><div class="input-wrap"><input type="text" class="text-input cnt" id="hlT1" maxlength="17" style="padding-right:52px"><span class="char-count">0/17</span></div></div>
@@ -1902,7 +1902,7 @@ init();
         </div>
         <div class="field"><label>푸시 제목 <span class="req">*</span></label><div class="input-wrap"><input type="text" class="text-input cnt" id="pushT" maxlength="20" style="padding-right:52px"><span class="char-count">0/20</span></div></div>
         <div class="field"><label>푸시 내용 <span class="req">*</span></label><div class="input-wrap"><textarea class="text-input cnt" id="pushB" rows="2" maxlength="30" style="padding-right:56px"></textarea><span class="char-count" style="top:auto;bottom:10px;transform:none">0/30</span></div></div>
-        <p class="hint">제목 <b>15자</b> / 내용 <b>30자</b> 이내 (알림에는 25자까지 노출 · 이후 말줄임) · 이모지 사용 불가 · 푸시 동의 회원(75만) 중 발송되며 7일 내 열람률 10% 이상입니다.</p>
+        <p class="hint">제목 <b>20자</b> / 내용 <b>30자</b> 이내 (알림에는 25자까지 노출 · 이후 말줄임) · 이모지 사용 불가 · 푸시 동의 회원(75만) 중 발송되며 7일 내 열람률 10% 이상입니다.</p>
       </div>
       <div id="grpSplash" style="display:none">
         <div class="field"><label>노출형 <span class="req">*</span></label>
@@ -3220,10 +3220,10 @@ function buildGuide(p){
   const rows=[];
   if(p.spec) rows.push(['사이즈',`${p.spec.w} × ${p.spec.h}px ${p.spec.strict?'<b>(고정)</b>':'(권장)'}`]);
   rows.push(['파일 형식','JPG · PNG, 10MB 이하'+(curSlot==='insta'?' / 영상 MP4 60초 이내':'')+(curSlot==='splash'?' / 영상 MP4 1080×1920 (3초 반복 재생)':'')]);
-  if(curSlot==='main') rows.push(['텍스트 존','좌상단 텍스트 영역 확보 — 줄당 15자 · 최대 2줄, 이미지 내 텍스트 삽입 금지']);
+  if(curSlot==='main') rows.push(['텍스트 존','좌상단 텍스트 영역 확보 — 줄당 20자 · 최대 2줄, 이미지 내 텍스트 삽입 금지']);
   if(curSlot==='headline') rows.push(['오브젝트','우측 배치 · 배경 투명 PNG 권장 · 텍스트 미포함']);
   if(curSlot==='splash') rows.push(['안전 영역','중앙 로고 존 침범 금지 · 주요 요소는 하단 1/3에 배치']);
-  if(curSlot==='push') rows.push(['문구 규정','제목 15자 · 내용 30자 이내, 이모지 사용 불가']);
+  if(curSlot==='push') rows.push(['문구 규정','제목 20자 · 내용 30자 이내, 이모지 사용 불가']);
   if(curSlot==='menubn'||curSlot==='searchbn') rows.push(['디자인 가이드','배경 화이트 고정 · 좌측 텍스트(제목 Pretendard Bold 15px · 부제 14px, 각 1행 14자 이내, 폭 180px) · 우측 오브젝트 121×121 (누끼 가능 시 누끼, 불가 시 원형 마스크)']);
   if(['storebn','couponbn','shopbn','culturebn'].includes(curSlot)) rows.push(['디자인 가이드','좌측 텍스트 존(제목·부제) 확보 · 우측 비주얼 배치 · 라운드 처리는 앱에서 자동 적용되므로 사각형 그대로 제작']);
   if(curSlot==='trendbn') rows.push(['디자인 가이드','세로형 카드 · 우하단 AD 배지 영역(약 60×30) 비움 · 텍스트는 카드 하단 1/3 안에 배치']);
