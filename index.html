@@ -1749,6 +1749,14 @@ function makeOfflineStub(){
       try{ const url = await supaUploadBlob(path, file, file.type); if(url) return url; }catch(e){ console.warn('[Supabase] 업로드 실패', e); }
       return URL.createObjectURL(file);
     },
+    /* 저장소에 남아 있는 소재 파일 찾기 — 복구에 사용합니다 */
+    async listFiles(prefix){
+      const sb = await getSupa(); if(!sb) return null;
+      const { data, error } = await sb.storage.from(SUPABASE_BUCKET).list(prefix, { limit:200 });
+      if(error) throw error;
+      return (data||[]).filter(f=>f&&f.name).map(f=>({ name:f.name,
+        url: sb.storage.from(SUPABASE_BUCKET).getPublicUrl(prefix+'/'+f.name).data.publicUrl }));
+    },
   };
 }
 
@@ -1786,13 +1794,22 @@ async function init(){
       putMedia: fsPutMedia,
       getMedia: fsGetMedia,
       async uploadDataUrl(path, dataUrl){
-        { const blob = await (await fetch(dataUrl)).blob(); const url = await supaUploadBlob(path, blob, blob.type); if(url) return url; }
+        try{ const blob = await (await fetch(dataUrl)).blob(); const url = await supaUploadBlob(path, blob, blob.type); if(url) return url; }
+        catch(e){ console.warn('[Supabase] 업로드 실패', e); }
         return dataUrl;
       },
       async uploadFile(path, file){
         { const url = await supaUploadBlob(path, file, file.type); if(url) return url; }
         return URL.createObjectURL(file);
       },
+    /* 저장소에 남아 있는 소재 파일 찾기 — 복구에 사용합니다 */
+    async listFiles(prefix){
+      const sb = await getSupa(); if(!sb) return null;
+      const { data, error } = await sb.storage.from(SUPABASE_BUCKET).list(prefix, { limit:200 });
+      if(error) throw error;
+      return (data||[]).filter(f=>f&&f.name).map(f=>({ name:f.name,
+        url: sb.storage.from(SUPABASE_BUCKET).getPublicUrl(prefix+'/'+f.name).data.publicUrl }));
+    },
     };
   }catch(e){
     console.error('[Firebase] 초기화 실패 — 로컬 전용 모드로 전환합니다.', e);
@@ -2243,6 +2260,15 @@ init();
       <div class="field" style="margin:0;display:flex;align-items:flex-end"><button class="btn-primary" id="acAdd" style="width:100%">계정 발급</button></div>
     </div>
     <table class="tbl" id="acTbl"></table>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-head"><h2>소재 보관 점검 · 복구</h2><span class="opt">등록된 소재가 서버에 안전하게 남아 있는지 확인합니다</span></div>
+    <div id="matChkSum" class="hint" style="margin:2px 0 10px">[점검] 을 눌러 주세요.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-ghost btn-sm" id="matChkBtn" type="button">점검</button>
+      <button class="btn-primary btn-sm" id="matFixBtn" type="button">복구 실행</button>
+    </div>
+    <div id="matChkLog" style="margin-top:10px;font-size:12.5px;color:var(--ink-2);max-height:260px;overflow:auto"></div>
   </div>
   <div class="card" style="margin-top:16px">
     <div class="card-head"><h2>관리자 보안코드 변경</h2><span class="opt">변경하면 모든 기기의 관리자 로그인에 적용됩니다</span></div>
@@ -5031,6 +5057,17 @@ function mgrLinkable(){
     .sort((a,b)=>campSpan(a).s<campSpan(b).s?-1:1);
 }
 const acOpen=new Set();   /* 캠페인 목록을 펼친 담당자 */
+/* ─── 소재 보관 점검 · 복구 ─── */
+function matChkRender(){
+  const sum=matSummary(), tot=sum.cloud+sum.chunk+sum.local+sum.missing;
+  const li=(n,t,c)=>n?`<span style="display:inline-block;margin-right:12px;color:${c}"><b>${n}건</b> ${t}</span>`:'';
+  $('matChkSum').innerHTML = tot===0 ? '등록된 소재가 없습니다.'
+    : `소재 ${tot}건 — `
+      + li(sum.cloud+sum.chunk,'서버 보관 완료','var(--hd-deep)')
+      + li(sum.local,'이 브라우저에만 있음 (복구 실행 필요)','#B8860B')
+      + li(sum.missing,'이미지 없음 (복구 시도 대상)','#C2402A');
+}
+function matChkLog(m){ const el=$('matChkLog'); if(el) el.innerHTML += `<div>· ${esc(m)}</div>`; }
 function renderAcTbl(){
   const mgrs=ACCOUNTS.filter(a=>a.role==='adv'&&a.code), link=mgrLinkable();
   $('acTbl').innerHTML=`<colgroup><col style="width:17%"><col style="width:19%"><col style="width:22%"><col style="width:12%"><col style="width:12%"><col style="width:18%"></colgroup><thead><tr><th>담당자명</th><th>담당 대행사</th><th>보안코드</th><th class="ac-c">캠페인</th><th class="ac-c">상태</th><th class="ac-c">관리</th></tr></thead><tbody>`+
@@ -5052,6 +5089,20 @@ function renderAcTbl(){
       return row+`<tr class="ac-sub"><td colspan="6">${list}${sel}</td></tr>`;
     }).join('')+`</tbody>`;
   $('acTbl').querySelectorAll('[data-pwcopy]').forEach(b=>b.addEventListener('click',()=>copyText(b.dataset.pwcopy,'보안코드를 복사했어요')));
+  { const cb=$('matChkBtn'), fb=$('matFixBtn');
+    if(cb&&!cb.dataset.on){ cb.dataset.on='1'; cb.addEventListener('click',()=>{ $('matChkLog').innerHTML=''; matChkRender(); }); }
+    if(fb&&!fb.dataset.on){ fb.dataset.on='1'; fb.addEventListener('click',async ()=>{
+      fb.disabled=true; const t=fb.textContent; fb.textContent='복구 중…'; $('matChkLog').innerHTML='';
+      try{
+        const r=await matRecover(matChkLog);
+        matChkRender();
+        matChkLog(`— 완료: 되살림 ${r.back}건 · 서버 보관 ${r.pushed}건 · 복구 불가 ${r.gone.length}건`);
+        if(r.gone.length) matChkLog('복구 불가한 소재는 광고주께 원본을 다시 요청해 주세요.');
+        toast(`복구 완료 — 되살림 ${r.back}건 · 서버 보관 ${r.pushed}건${r.gone.length?` · 복구 불가 ${r.gone.length}건`:''}`);
+      }catch(e){ matChkLog('복구 중 오류: '+(e&&e.message||e)); }
+      finally{ fb.disabled=false; fb.textContent=t; }
+    }); } }
+  matChkRender();
   $('acTbl').querySelectorAll('[data-actog]').forEach(b=>b.addEventListener('click',()=>{ const k=b.dataset.actog; if(acOpen.has(k)) acOpen.delete(k); else acOpen.add(k); renderAcTbl(); }));
   $('acTbl').querySelectorAll('[data-acgo]').forEach(r=>r.addEventListener('click',e=>{ if(e.target.closest('button')) return; openCampOnBoard(r.dataset.acgo); }));
   $('acTbl').querySelectorAll('[data-acunlink]').forEach(b=>b.addEventListener('click',()=>{
@@ -5150,6 +5201,122 @@ function docFileLinks(c,key,admin){
   return fl.map((f,i)=>f.url
     ? `<a class="doc-chip ok" href="${f.url}" download="${esc(f.name)}" target="_blank" rel="noopener" style="text-decoration:none" title="다운로드">⬇ ${esc(f.name)}</a>`
     : `<span class="doc-chip ok" title="파일이 이 브라우저에만 보관되어 있어요">✓ ${esc(f.name)}</span>`).join('');
+}
+/* ═══════════ 소재 원본 보관 · 점검 · 복구 ═══════════
+   소재 이미지는 ① 저장소(https) ② 분할 보관(fsm:) ③ 이 브라우저 보관함 순으로 지켜집니다.
+   ①②가 모두 실패해도 ③에 원본이 남아, 다음 접속 때 자동으로 다시 올립니다. */
+const MAT_DB='hd_mat_v1', MAT_ST='imgs';
+let _matDbP=null;
+function matDb(){
+  if(_matDbP) return _matDbP;
+  _matDbP=new Promise((res,rej)=>{
+    try{
+      const q=indexedDB.open(MAT_DB,1);
+      q.onupgradeneeded=()=>{ const d=q.result; if(!d.objectStoreNames.contains(MAT_ST)) d.createObjectStore(MAT_ST); };
+      q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); q.onblocked=()=>rej(new Error('blocked'));
+    }catch(e){ rej(e); }
+  }).catch(e=>{ _matDbP=null; throw e; });
+  return _matDbP;
+}
+function matKeep(key,dataUrl){
+  return matDb().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction(MAT_ST,'readwrite'); t.objectStore(MAT_ST).put(dataUrl,key);
+    t.oncomplete=()=>res(true); t.onerror=()=>rej(t.error);
+  })).catch(()=>false);
+}
+function matTake(key){
+  return matDb().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction(MAT_ST,'readonly'); const r=t.objectStore(MAT_ST).get(key);
+    r.onsuccess=()=>res(r.result||null); r.onerror=()=>rej(r.error);
+  })).catch(()=>null);
+}
+const matPrefix=(cid,slot)=>`creatives/${cid}/${slot}`;
+/* 소재 한 장의 보관 상태 */
+function matState(im){
+  if(!im||typeof im.src!=='string'||!im.src) return 'missing';
+  if(im.src===LOCAL_IMG) return 'missing';
+  if(im.src===BLANK_IMG) return im.fsRef?'chunk':'missing';
+  if(/^https?:/.test(im.src)) return 'cloud';
+  if(im.src.startsWith('fsm:')) return 'chunk';
+  if(im.src.startsWith('data:')) return im.fsRef?'chunk':'local';
+  if(im.src.startsWith('blob:')) return 'local';
+  return 'missing';
+}
+/* 전체 캠페인의 소재 보관 상태 점검 */
+function matScan(){
+  const rows=[];
+  (CAMPAIGNS||[]).forEach(c=>(c.items||[]).forEach(it=>{
+    const cr=it.creative; if(!cr||!it.mat) return;
+    const imgs=Array.isArray(cr.imgs)?cr.imgs:[];
+    const needImg=!['event','lms','push','kakao','insta','headline'].includes(it.p);
+    if(!imgs.length){ if(needImg) rows.push({cid:c.id,name:c.name,adv:c.adv,slot:it.p,i:0,st:'missing'}); return; }
+    imgs.forEach((im,i)=>rows.push({cid:c.id,name:c.name,adv:c.adv,slot:it.p,i,st:matState(im)}));
+  }));
+  return rows;
+}
+function matSummary(rows){
+  const o={cloud:0,chunk:0,local:0,missing:0};
+  (rows||matScan()).forEach(r=>{ o[r.st]=(o[r.st]||0)+1; });
+  return o;
+}
+/* 복구 — ① 이 브라우저 보관함 ② 저장소에 남은 파일 순으로 되살립니다 */
+async function matRecover(log){
+  const say=m=>{ try{ log&&log(m); }catch(e){} };
+  const rows=matScan();
+  let back=0, pushed=0; const gone=[];
+  for(const r of rows){
+    if(r.st==='cloud'||r.st==='chunk') continue;
+    const c=(CAMPAIGNS||[]).find(x=>x.id===r.cid); if(!c) continue;
+    const it=(c.items||[]).find(x=>x.p===r.slot); if(!it||!it.creative) continue;
+    const pre=matPrefix(c.id,r.slot), label=`${c.adv||''} ${c.name} · ${P[r.slot]?P[r.slot].name:r.slot}`;
+    if(r.st==='missing'){
+      let src=await matTake(`${pre}|${r.i}`);              /* ① 이 브라우저 보관함 */
+      if(!src && window.FB && window.FB.listFiles){        /* ② 저장소에 남은 파일 */
+        try{
+          const fs=await window.FB.listFiles(pre);
+          if(fs&&fs.length){
+            const mine=fs.filter(f=>new RegExp('^img'+r.i+'_').test(f.name));
+            const pick=(mine.length?mine:fs).sort((a,b)=>a.name<b.name?1:-1)[0];
+            if(pick) src=pick.url;
+          }
+        }catch(e){ console.warn('[복구] 저장소 조회 실패', e); }
+      }
+      if(src){
+        const imgs=it.creative.imgs=Array.isArray(it.creative.imgs)?it.creative.imgs:[];
+        imgs[r.i]={...(imgs[r.i]||{}), src}; delete imgs[r.i].fsRef;
+        back++; touch(c); say(`되살림 — ${label}`);
+      } else { gone.push(r); say(`복구 불가 — ${label}`); }
+    } else if(r.st==='local'){
+      /* 축소본만 남아 있으면 이 브라우저의 원본으로 되돌립니다 */
+      const imgs=it.creative.imgs||[], cur=imgs[r.i];
+      const orig=await matTake(`${pre}|${r.i}`);
+      if(orig && cur && typeof cur.src==='string' && orig.length>cur.src.length){
+        imgs[r.i]={...cur, src:orig}; delete imgs[r.i].fsRef;
+        back++; touch(c); say(`원본 복원 — ${label}`);
+      }
+    }
+  }
+  /* 아직 서버에 못 올린 소재는 지금 다시 올립니다 */
+  for(const c of (CAMPAIGNS||[])) for(const it of (c.items||[])){
+    if(!it.creative) continue;
+    const before=(it.creative.imgs||[]).map(matState).join(',');
+    if(!/local|missing/.test(before)) continue;
+    try{ await uploadDraftImages(it.creative, matPrefix(c.id,it.p));
+      const after=(it.creative.imgs||[]).map(matState).join(',');
+      if(after!==before){ pushed++; touch(c); say(`서버 보관 완료 — ${c.adv||''} ${c.name} · ${P[it.p]?P[it.p].name:it.p}`); }
+    }catch(e){}
+  }
+  if(back||pushed){ try{ fbScheduleSync(); }catch(e){} }
+  return {back, pushed, gone};
+}
+/* 접속할 때 조용히 재시도 — 서버에 못 올라간 소재를 자동으로 다시 올립니다 */
+let _matRetried=false;
+function matAutoRetry(){
+  if(_matRetried||!me||!(window.FB&&window.FB.online)) return;
+  _matRetried=true;
+  setTimeout(()=>{ matRecover(null).then(r=>{
+    if(r.back||r.pushed) toast(`소재 보관을 정리했어요 — 되살림 ${r.back}건 · 서버 보관 ${r.pushed}건 ✓`);
+  }).catch(()=>{}); }, 2500);
 }
 /* 소재 표시 — 영상이면 3초 구간 무한 반복 재생, 이미지는 기존과 동일 */
 const VIDEO_FILES={};   /* 미리보기 주소(blob:) → 원본 파일 (저장 시 업로드) */
@@ -5974,6 +6141,7 @@ $('loginBtn').addEventListener('click',async ()=>{
   boardFilter='전체'; if(typeof shopFilter!=='undefined') shopFilter='all';
   NAV_HIST=[]; curPg=null;
   buildNav(); go(a.role==='admin' ? 'board' : 'products');
+  matAutoRetry();   /* 서버에 못 올라간 소재가 있으면 조용히 다시 올립니다 */
   if(a.role==='admin'&&window.__fbGotState){ const r1=registerLedgerToBoard(), r2=applyDataFixV22(); if(r1||r2){ fbScheduleSync(); if(RENDER[curPg]) RENDER[curPg](); } }
 });
 [$('loginId'),$('loginPw')].forEach(i=>i.addEventListener('keydown',e=>{ if(e.key==='Enter') $('loginBtn').click(); }));
@@ -6549,6 +6717,7 @@ async function uploadDraftImages(d, pathPrefix){
       continue;
     }
     if(im.src.startsWith('data:')){
+      try{ matKeep(`${pathPrefix}|${i}`, im.src); }catch(e){}   /* 원본을 이 브라우저에 보관 — 업로드 실패 시 재시도용 */
       const m=/^data:image\/([a-z0-9+]+)/i.exec(im.src);
       const ex=m ? (m[1].toLowerCase()==='jpeg'?'jpg':m[1].toLowerCase()) : 'jpg';
       if(window.FB&&window.FB.online){
