@@ -3327,6 +3327,8 @@ $('saveSlotBtn').addEventListener('click', async ()=>{
     renderSlotTabs();
     if(typeof fbScheduleSync==='function') fbScheduleSync();   /* 저장 즉시 클라우드 반영 */
     toast(allMat?'소재 등록 완료! 심의(7영업일 소요) 통과 후 광고 예정으로 전환됩니다 ✓':'이 구좌 소재를 확정했어요 — 다음 구좌 소재를 등록해 주세요');
+    if(_imgUnsaved){ _imgUnsaved=false;   /* 성공 안내가 사라진 뒤에 띄웁니다 */
+      setTimeout(()=>toast('⚠️ 이미지 원본을 서버에 저장하지 못했어요 — 다른 기기·다음 접속에서 보이지 않을 수 있습니다. 네트워크 확인 후 [소재 저장]을 다시 눌러 주세요'), 2700); }
     /* 저장 확인: 버튼을 초록으로 바꾼 뒤 상단 구좌 탭의 다음(미등록) 구좌로 이동 */
     const btn=$('saveSlotBtn'), savedSlot=curSlot;
     btn.textContent=(me&&me.role==='admin')?'✓ 저장 완료':'✓ 확정 완료'; btn.style.background='var(--hd-green)'; btn.style.color='#fff'; btn.style.borderColor='var(--hd-green)';
@@ -5151,6 +5153,7 @@ function docFileLinks(c,key,admin){
 }
 /* 소재 표시 — 영상이면 3초 구간 무한 반복 재생, 이미지는 기존과 동일 */
 const VIDEO_FILES={};   /* 미리보기 주소(blob:) → 원본 파일 (저장 시 업로드) */
+let _imgUnsaved=false;   /* 이번 저장에서 서버에 원본을 못 남긴 이미지가 있었는지 */
 function mediaTag(im, attrs){
   const src=(im&&(im.src||im))||'';
   if(im&&im.video&&String(src).startsWith('fsm:')) return `<video data-fsm="${src}" muted loop playsinline autoplay preload="auto" data-loop3 ${attrs||''}></video>`;
@@ -5205,8 +5208,12 @@ function effOf(c){
   if(c.status==='세금계산서 발행'&&c.tax){ dn=8; cu=9; }
   return {dn,cu};
 }
+/* 사용자가 눌러서 보고 있는 단계 — 이 브라우저에서만 유지합니다.
+   캠페인 객체에 두면 서버 동기화가 올 때 객체가 통째로 교체되며 사라지고,
+   다른 사용자 화면까지 같이 움직입니다. */
+const UI_STEP={};
 function uiStepOf(c){
-  if(c.uiStep!==undefined) return c.uiStep;
+  if(UI_STEP[c.id]!==undefined) return UI_STEP[c.id];
   if(c.status==='반려') return c.rejFrom??0;
   return Math.min(8, effOf(c).cu);
 }
@@ -5381,7 +5388,7 @@ function stepDetail(c,i,admin){
 }
 function reqCard(c, admin){
   const si=stIdx(c), docs=docsOf(c);
-  const ui = c.uiStep!==undefined ? c.uiStep
+  const ui = UI_STEP[c.id]!==undefined ? UI_STEP[c.id]
     : c.status==='반려' ? (c.rejFrom??0)
     : admin ? Math.max(0,Math.min(8,si))
     : uiStepOf(c);
@@ -5549,14 +5556,14 @@ RENDER.board = () => {
   const setSt=(c,val)=>{
     if(val==='반려'){ c.rejFrom=Math.max(0,stIdx(c)); c.rejectNote=(window.prompt('반려 사유를 입력해 주세요','서류 보완이 필요합니다')||'서류 보완이 필요합니다'); c.status='반려'; }
     else { c.status=val; delete c.rejFrom; if(val!=='반려') delete c.rejectNote; }
-    c.uiStep=undefined; touch(c, val==='취소'?'부킹 취소':val);
+    delete UI_STEP[c.id]; touch(c, val==='취소'?'부킹 취소':val);
     toast(val==='반려'?`「${c.name}」 반려 처리됐어요`:`「${c.name}」 상태 → ${val}`);
     RENDER.board();
   };
   $('reqList').querySelectorAll('[data-stp]').forEach(el=>el.addEventListener('click',()=>{
     const [cid,i]=el.dataset.stp.split(':');
     const c=CAMPAIGNS.find(x=>x.id===cid); if(!c) return;
-    c.uiStep=+i; RENDER.board();
+    UI_STEP[c.id]=+i; RENDER.board();
   }));
   $('reqList').querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{
     const [cid,val]=b.dataset.set.split(':');
@@ -5596,7 +5603,7 @@ RENDER.board = () => {
   });
   $('reqList').querySelectorAll('[data-cfx]').forEach(b=>b.addEventListener('click',()=>{
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.cfx); if(!c) return;
-    c.status='청약 확정'; c.confirmedAt=dstr(TODAY); c.uiStep=undefined; touch(c);
+    c.status='청약 확정'; c.confirmedAt=dstr(TODAY); delete UI_STEP[c.id]; touch(c);
     toast('청약이 확정되었어요 ✓ 이제 소재를 등록해 주세요');
     RENDER.board();
   }));
@@ -5693,7 +5700,7 @@ RENDER.board = () => {
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.matrej); if(!c) return;
     const note=window.prompt('소재 반려 사유를 입력해 주세요','규격에 맞지 않는 소재가 있습니다');
     if(note===null) return;
-    c.rejFrom=4; c.rejectNote=note||'소재 보완이 필요합니다'; c.status='반려'; c.uiStep=undefined; touch(c);
+    c.rejFrom=4; c.rejectNote=note||'소재 보완이 필요합니다'; c.status='반려'; delete UI_STEP[c.id]; touch(c);
     toast('소재를 반려했어요 — 사유가 광고주에게 표시됩니다');
     RENDER.board();
   }));
@@ -5712,7 +5719,7 @@ RENDER.board = () => {
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.matre); if(!c) return;
     const allMat=c.items.every(x=>x.mat||x.p==='event');
     if(!allMat){ toast('아직 등록되지 않은 구좌가 있어요 — 소재 등록 탭에서 모두 등록해 주세요'); return; }
-    c.status='소재 등록'; c.rejFrom=undefined; c.rejectNote=undefined; c.uiStep=undefined; touch(c,'재검수 요청');
+    c.status='소재 등록'; c.rejFrom=undefined; c.rejectNote=undefined; delete UI_STEP[c.id]; touch(c,'재검수 요청');
     toast('재검수를 요청했어요 ✓ 담당자 승인을 기다려 주세요');
     RENDER.board();
   }));
@@ -5737,14 +5744,14 @@ RENDER.board = () => {
   }));
   $('reqList').querySelectorAll('[data-matok]').forEach(b=>b.addEventListener('click',()=>{
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.matok); if(!c) return;
-    c.matApproved=true; c.status='광고 예정'; c.uiStep=undefined;
+    c.matApproved=true; c.status='광고 예정'; delete UI_STEP[c.id];
     c.rejectNote=undefined; c.rejFrom=undefined; touch(c);
     toast('소재를 승인했어요 ✓ 광고 예정으로 전환 — 광고주가 미리보기를 직접 확인·다운로드합니다');
     RENDER.board();
   }));
   $('reqList').querySelectorAll('[data-pvok]').forEach(b=>b.addEventListener('click',()=>{
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.pvok); if(!c) return;
-    c.pvConfirmed=true; c.pvRejectNote=undefined; c.uiStep=undefined; touch(c,'프리뷰 확인 완료'); syncAuto(c);
+    c.pvConfirmed=true; c.pvRejectNote=undefined; delete UI_STEP[c.id]; touch(c,'프리뷰 확인 완료'); syncAuto(c);
     toast('미리보기 확인이 완료되었어요 ✓ 일정에 맞춰 광고가 시작됩니다');
     RENDER.board();
   }));
@@ -5752,7 +5759,7 @@ RENDER.board = () => {
     const c=CAMPAIGNS.find(x=>x.id===b.dataset.pvrej); if(!c) return;
     const note=window.prompt('추가로 확인하고 싶은 프리뷰 화면을 알려주세요','전체 메뉴·팝업 화면 프리뷰를 추가로 보여주세요');
     if(note===null) return;
-    c.pvRejectNote=note||'프리뷰 보충이 필요합니다'; c.pvConfirmed=false; c.uiStep=undefined; touch(c,'프리뷰 보충 요청');
+    c.pvRejectNote=note||'프리뷰 보충이 필요합니다'; c.pvConfirmed=false; delete UI_STEP[c.id]; touch(c,'프리뷰 보충 요청');
     toast('프리뷰 보충 요청을 보냈어요 — 담당자가 확인 후 추가 등록합니다');
     RENDER.board();
   }));
@@ -6443,7 +6450,7 @@ function renderAdjust(){
     adjC.discRate=_ls>0?Math.max(0,Math.round((1-_ss/_ls)*1000)/10):0;
     adjC.items=adjItems;
     adjC.adjustMemo=adjMemoV.trim();
-    adjC.status='부킹 승인'; adjC.uiStep=undefined; delete adjC.rejFrom; delete adjC.rejectNote; touch(adjC);
+    adjC.status='부킹 승인'; delete UI_STEP[adjC.id]; delete adjC.rejFrom; delete adjC.rejectNote; touch(adjC);
     $('adjModal').classList.remove('show');
     toast(`「${adjC.name}」 부킹 승인 완료 — 조정 내역이 광고주 화면에 표시됩니다 ✓`);
     RENDER.board();
@@ -6475,7 +6482,7 @@ function openMatReview(c, viewOnly){
     </div>`;
   $('matBody').querySelector('#matOk').addEventListener('click',()=>{
     matC=CAMPAIGNS.find(x=>x.id===matC.id)||matC;   /* 최신 캠페인에 반영 */
-    matC.status='광고 예정'; matC.uiStep=undefined; touch(matC);
+    matC.status='광고 예정'; delete UI_STEP[matC.id]; touch(matC);
     $('matModal').classList.remove('show');
     toast('소재가 확정됐어요 — 광고 예정으로 전환됩니다 ✓');
     RENDER.board();
@@ -6484,7 +6491,7 @@ function openMatReview(c, viewOnly){
     const note=window.prompt('소재 반려 사유를 입력해 주세요','규격에 맞지 않는 소재가 있습니다');
     if(note===null) return;
     matC=CAMPAIGNS.find(x=>x.id===matC.id)||matC;
-    matC.rejFrom=4; matC.rejectNote=note||'소재 보완이 필요합니다'; matC.status='반려'; matC.uiStep=undefined; touch(matC);
+    matC.rejFrom=4; matC.rejectNote=note||'소재 보완이 필요합니다'; matC.status='반려'; delete UI_STEP[matC.id]; touch(matC);
     $('matModal').classList.remove('show');
     toast('소재를 반려했어요 — 사유가 광고주에게 표시됩니다');
     RENDER.board();
@@ -6549,10 +6556,19 @@ async function uploadDraftImages(d, pathPrefix){
         catch(e){ console.warn('creative image upload failed', e); }
       }
     }
+    /* 저장소 업로드가 안 됐으면 이미지를 별도 문서로 나눠 보관합니다 (상태 문서 용량 한도 회피) */
+    if(im.src.startsWith('data:') && window.FB && window.FB.online && window.FB.putMedia){
+      try{
+        const blob = await (await fetch(im.src)).blob();
+        const ref = await window.FB.putMedia(String(pathPrefix+'_i'+i+'_'+Date.now()).replace(/[^\w-]/g,'_'), blob);
+        if(ref){ IMG_REF_CACHE[ref]=im.src; im.fsRef=ref; }
+      }catch(e){ console.warn('creative image fallback failed', e); }
+    }
     /* 원본이 여전히 data:라면 동기화용 축소본을 함께 보관 (원본은 로컬 다운로드용으로 유지) */
     if(im.src.startsWith('data:')){
       try{ im.syncSrc = await shrinkDataUrl(im.src, 900, 0.68); }catch(e){}
-    } else { delete im.syncSrc; }
+      if(!im.fsRef && window.FB && window.FB.online) _imgUnsaved=true;   /* 서버에 원본을 못 남긴 소재 */
+    } else { delete im.syncSrc; delete im.fsRef; }
   }
 }
 let _fbLastSynced='', _fbLastLocal='';   /* _fbLastLocal: 마지막으로 서버와 맞춘 시점의 내 데이터 */
@@ -6581,11 +6597,38 @@ function readRemoteFin(remote){
    (Supabase Storage가 연결돼 있으면 이미지는 https URL이 되어 그대로 동기화됩니다) */
 const LOCAL_IMG='__LOCAL_IMAGE__';
 const SYNC_LIMIT=900000;   /* Firestore 문서 1MiB — 여유를 두고 900KB로 제한 */
+/* ─── 소재 이미지 분할 보관 ───
+   이미지를 상태 문서에 그대로 담으면 1MiB 한도에 걸려 오래된 소재부터 버려집니다.
+   저장소 업로드가 안 될 때는 이미지를 별도 문서로 나눠 저장하고(fsm: 참조),
+   불러올 때 되돌립니다. 상태 문서에는 짧은 참조만 들어가 용량 문제가 사라집니다. */
+const IMG_REF_CACHE={};   /* fsm: 참조 → 이미지 데이터 */
+const IMG_REF_WAIT={};
+const BLANK_IMG='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+function fsImgLoad(ref){
+  if(IMG_REF_CACHE[ref]) return Promise.resolve(IMG_REF_CACHE[ref]);
+  if(!IMG_REF_WAIT[ref]) IMG_REF_WAIT[ref]=(window.FB&&window.FB.getMedia ? window.FB.getMedia(ref) : Promise.reject(new Error('offline')))
+    .then(blob=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result)); r.onerror=rej; r.readAsDataURL(blob); }))
+    .then(u=>{ IMG_REF_CACHE[ref]=u; fsImgPatch(ref,u); return u; })
+    .catch(e=>{ delete IMG_REF_WAIT[ref]; throw e; });
+  return IMG_REF_WAIT[ref];
+}
+/* 받아온 이미지를 화면의 캠페인 데이터에 채워 넣고 다시 그립니다 */
+let _fsImgPaint=null;
+function fsImgPatch(ref,url){
+  let hit=false;
+  (CAMPAIGNS||[]).forEach(c=>(c.items||[]).forEach(it=>['creative','draftCr'].forEach(k=>{
+    const cr=it[k];
+    if(cr&&Array.isArray(cr.imgs)) cr.imgs.forEach(im=>{ if(im&&im.fsRef===ref&&im.src!==url){ im.src=url; hit=true; } });
+  })));
+  if(hit){ clearTimeout(_fsImgPaint); _fsImgPaint=setTimeout(()=>{
+    try{ if(me&&curPg&&RENDER[curPg]&&!isTyping()) renderKeepScroll(RENDER[curPg]); }catch(e){}
+  },120); }
+}
 function slimForSync(state){
   /* 소재 원본 이미지(용량이 큼)만 자리표시자로 바꾸고,
      게재 프리뷰는 광고주가 다른 브라우저에서 확인해야 하므로 그대로 함께 전송합니다. */
   const camps=(state.CAMPAIGNS||[]).map(c=>{
-    const cc={...c};
+    const cc={...c}; delete cc.uiStep;   /* 보고 있는 단계는 화면 상태 — 서버로 보내지 않습니다 */
     if(Array.isArray(c.items)) cc.items=c.items.map(it=>{
       if(!it.creative&&!it.draftCr) return it;
       const slimCr=src=>{ const cr={...src};
@@ -6593,8 +6636,8 @@ function slimForSync(state){
           if(!im||typeof im.src!=='string') return im;
           if(im.src.startsWith('blob:')) return {...im, src:LOCAL_IMG};   /* 업로드 전 영상 — 이 기기에서만 재생 */
           if(!im.src.startsWith('data:')){ const o={...im}; delete o.syncSrc; return o; }
-          const o={...im, src: im.syncSrc || LOCAL_IMG};   /* 축소본이 있으면 그것을 전송 */
-          delete o.syncSrc; return o;
+          const o={...im, src: im.fsRef || im.syncSrc || LOCAL_IMG};   /* 분할 보관본 > 축소본 순으로 전송 */
+          delete o.syncSrc; delete o.fsRef; return o;
         });
         delete cr._ld; return cr; };
       const o={...it}; if(it.creative) o.creative=slimCr(it.creative); if(it.draftCr) o.draftCr=slimCr(it.draftCr);   /* 임시 저장 소재도 동일 */
@@ -6637,6 +6680,12 @@ function restoreLocalImgs(rc, lc){
     ['creative','draftCr'].forEach(k=>{
       if(ri[k]&&Array.isArray(ri[k].imgs)){
         ri[k].imgs=ri[k].imgs.map((im,i)=>{
+          if(im&&typeof im.src==='string'&&im.src.startsWith('fsm:')){   /* 분할 보관본 — 받아서 되돌립니다 */
+            const ref=im.src;
+            if(IMG_REF_CACHE[ref]) return {...im, src:IMG_REF_CACHE[ref], fsRef:ref};
+            fsImgLoad(ref).catch(()=>{});
+            return {...im, src:BLANK_IMG, fsRef:ref};
+          }
           if(im&&im.src===LOCAL_IMG){
             const lim=li&&li[k]&&Array.isArray(li[k].imgs)?li[k].imgs[i]:null;
             return (lim&&lim.src&&lim.src!==LOCAL_IMG)?lim:null;
